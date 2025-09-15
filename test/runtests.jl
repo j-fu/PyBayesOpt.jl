@@ -1,16 +1,18 @@
 using BoTorchOpt
 using Test
 
-# write tests here
+function black_box_function(x)
+    return -x[1]^2 - (x[2] - 1)^2 + 1
+end
 
-## NOTE add JET to the test environment, then uncomment
-# using JET
-# @testset "static analysis with JET.jl" begin
-#     JET.test_package(BoTorchOpt, target_modules=(BoTorchOpt,))
-# end
 
-## NOTE add Aqua to the test environment, then uncomment
-# @testset "QA with Aqua" begin
-#     import Aqua
-#     Aqua.test_all(BoTorchOpt)
-# end
+function test1(; q = 1)
+
+    bo = BoTorchOptimizer(;
+        bounds = [-10 -10; 10 10]',
+        seed = rand(10:1000),
+        batch_size = q
+    )
+
+    return optimize!(bo, black_box_function)
+end
