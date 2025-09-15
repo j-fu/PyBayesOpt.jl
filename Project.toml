@@ -1,0 +1,15 @@
+name = "BoTorchOpt"
+uuid = "ec14edaa-b110-45d8-b073-5b582e9ce5cd"
+authors = ["Jürgen Fuhrmann <juergen-fuhrmann@web.de>"]
+version = "0.1.0"
+
+[deps]
+
+[extras]
+Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
+
+[targets]
+test = ["Test"]
+
+[compat]
+julia = "1"
