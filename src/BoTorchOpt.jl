@@ -8,41 +8,97 @@ function __init__()
     return @pyinclude(joinpath(@__DIR__, "..", "pysrc", "botorchwrap.py"))
 end
 
-Base.@kwdef mutable struct BoTorchOptimizer
+"""
+    struct BoTorchOptimization
+
+Struct describing optimization and its state. It just can be used once.
+For repeated optimizations create new instances.
+
+
+## Fields: 
+
+### Method parameters and their defaults:
+- `bounds::Matrix{Float64} = [-1 1]\'` : `ndim x 2` matrix of evaluation bounds
+- `nbatch::Int = 1`: batch size for evaluations of black box model
+- `ninit::Int = 10`: number of initialization iterations resulting in `nbatch*ninit` evaluations
+- `nopt::Int = 10`: number of optimization iterations resulting in `nbatch*nopt` evaluations
+- `acqmethod::Symbol = :qLogEI`: acquisition method.  
+
+   Valid metods:
+    - `:qEI`, `:qExpectedImprovement`
+    - `:qLogEI`, `:qLogExpectedImprovement`
+    - `:qUCB`, `:qUpperConfidenceBound`
+    - `:qPI`, `:qProbabilityOfImprovement`
+- `seed::Int = 1234`: random seed
+- `verbose::Bool = true`: verbosity
+- `acq_nrestarts::Int = 20`: `num_restarts` parameter in `optimize_acqf`
+- `acq_nsamples::Int = 512`: `raw_samples` parameter in  `optimize_acqf`
+- `qUCB_beta::Float64 = 2.0`: beta parameter for qUCB_beta acquisition method
+
+### Internal state:
+- `_X_ini::Union{Nothing, Matrix{Float64}} = nothing`: initialization points
+- `_X_obs::Union{Nothing, PyObject} = nothing`: training points
+- `_Y_obs::Union{Nothing, PyObject} = nothing`: training values
+- `_gpmodel::Union{Nothing, PyObject} = nothing`: Gaussian process model
+- `_evaluations_used::Int = 0`: number of evaluations done
+- `_initialization_complete::Bool = false`: flag indicating initialization state
+- `_optimization_complete::Bool = false`: flag indicating optimization state
+- `_init_iterations_done::Int = 0`: initial iterations performed
+- `_optim_iterations_done::Int = 0`: optimization iterations performed
+"""
+Base.@kwdef mutable struct BoTorchOptimization
     bounds::Matrix{Float64} = [-1 1]'
-    batch_size::Int = 1
-    beta::Float64 = 2.0
-    initial_iterations::Int = 10
-    optimization_iterations::Int = 10
-    acquisition_type::String = "qLogEI"
-    num_restarts::Int = 20
-    raw_samples::Int = 512
+    nbatch::Int = 4
+    ninit::Int = 4
+    nopt::Int = 8
     seed::Int = 1234
     verbose::Bool = true
-    X_obs::Union{Nothing, PyObject} = nothing
-    X_ini::Union{Nothing, Matrix{Float64}} = nothing
-    Y_obs::Union{Nothing, PyObject} = nothing
-    model::Union{Nothing, PyObject} = nothing
-    evaluations_used::Int = 0
-    initialization_complete::Bool = false
-    optimization_complete::Bool = false
-    init_iterations::Int = 0
-    optim_iterations::Int = 0
+    acqmethod::Symbol = :qLogEI
+    acq_nrestarts::Int = 20
+    acq_nsamples::Int = 512
+    qUCB_beta::Float64 = 2.0
+    _X_ini::Union{Nothing, Matrix{Float64}} = nothing
+    _X_obs::Union{Nothing, PyObject} = nothing
+    _Y_obs::Union{Nothing, PyObject} = nothing
+    _gpmodel::Union{Nothing, PyObject} = nothing
+    _evaluations_used::Int = 0
+    _initialization_complete::Bool = false
+    _optimization_complete::Bool = false
+    _init_iterations_done::Int = 0
+    _optim_iterations_done::Int = 0
 end
 
-function initializing(bo::BoTorchOptimizer)
-    return !bo.initialization_complete && bo.init_iterations < bo.initial_iterations
+
+"""
+   initializing(optimization)
+
+Tell if optimization is in initialization state.
+"""
+function initializing(bo::BoTorchOptimization)
+    return !bo._initialization_complete && bo._init_iterations_done < bo.ninit
 end
 
-function optimizing(bo::BoTorchOptimizer)
-    return bo.initialization_complete && bo.optim_iterations < bo.optimization_iterations
+"""
+   optimizing(optimization)
+
+Tell if optimization is in optimization loop.
+"""
+function optimizing(bo::BoTorchOptimization)
+    return bo._initialization_complete && bo._optim_iterations_done < bo.nopt
 end
 
-function finished(bo::BoTorchOptimizer)
-    return bo.initialization_complete && bo.optimization_complete
+"""
+   optimizing(optimization)
+
+Tell if optimization is finished
+"""
+function finished(bo::BoTorchOptimization)
+    return bo._initialization_complete && bo._optimization_complete
 end
 
-function toscale!(pts::AbstractMatrix, bounds)
+
+function _toscale!(pts::AbstractMatrix, bo::BoTorchOptimization)
+    (; bounds) = bo
     for i in 1:size(pts, 2)
         for j in 1:size(pts, 1)
             pts[j, i] = bounds[j, 1] + pts[j, i] * (bounds[j, 2] - bounds[j, 1])
@@ -51,14 +107,16 @@ function toscale!(pts::AbstractMatrix, bounds)
     return pts
 end
 
-function toscale!(pt::AbstractVector, bounds)
+function _toscale!(pt::AbstractVector, bo::BoTorchOptimization)
+    (; bounds) = bo
     for j in 1:size(pt, 1)
         pt[j] = bounds[j, 1] + pt[j] * (bounds[j, 2] - bounds[j, 1])
     end
     return pt
 end
 
-function to01!(pts::AbstractMatrix, bounds)
+function _to01!(pts::AbstractMatrix, bo::BoTorchOptimization)
+    (; bounds) = bo
     for i in 1:size(pts, 2)
         for j in 1:size(pts, 1)
             pts[j, i] = (pts[j, i] - bounds[j, 1]) / (bounds[j, 2] - bounds[j, 1])
@@ -67,7 +125,8 @@ function to01!(pts::AbstractMatrix, bounds)
     return pts
 end
 
-function to01!(pt::AbstractVector, bounds)
+function _to01!(pt::AbstractVector, bo::BoTorchOptimization)
+    (; bounds) = bo
     for j in 1:size(pt, 1)
         pt[j] = (pt[j] - bounds[j, 1]) / (bounds[j, 2] - bounds[j, 1])
     end
@@ -75,36 +134,42 @@ function to01!(pt::AbstractVector, bounds)
 end
 
 
-function generate_initial_candidates!(bo)
-    (; batch_size, bounds, initial_iterations, seed) = bo
-    npoints = batch_size * initial_iterations
-    @assert size(bounds, 2) == 2
-    pts = py"generate_initial_candidates"(size(bounds, 1), npoints, seed)'
-    bo.X_ini = toscale!(pts, bounds)
+function _generate_initial_candidates!(bo)
+    (; nbatch, bounds, ninit, seed) = bo
+    pts = py"generate_initial_candidates"(size(bounds, 1), nbatch * ninit, seed)'
+    bo._X_ini = _toscale!(pts, bo)
     return nothing
 end
 
-function ask!(bo::BoTorchOptimizer)
+"""
+    ask!(optimization)
 
-    q = bo.batch_size
-    if bo.init_iterations == 0 && isnothing(bo.X_ini)
-        generate_initial_candidates!(bo)
+Ask for a new batch of points to be avaluated. Returns `dim x batchsize` matrix.
+At once may generate intial candidates or optimize the acquisition.
+"""
+function ask!(bo::BoTorchOptimization)
+
+    q = bo.nbatch
+    if bo._init_iterations_done == 0 && isnothing(bo._X_ini)
+        @assert size(bo.bounds, 2) == 2
+        # !!! more consistency checks here
+        _generate_initial_candidates!(bo)
     end
 
-    if !bo.initialization_complete
-        startbatch = bo.init_iterations * q + 1
-        bo.init_iterations += 1
-        if bo.init_iterations == bo.initial_iterations
-            bo.initialization_complete = true
+    if !bo._initialization_complete
+        startbatch = bo._init_iterations_done * q + 1
+        bo._init_iterations_done += 1
+        if bo._init_iterations_done == bo.ninit
+            bo._initialization_complete = true
         end
-        return bo.X_ini[:, startbatch:(startbatch + q - 1)]
+        return bo._X_ini[:, startbatch:(startbatch + q - 1)]
     end
 
-    if !bo.optimization_complete
+    if !bo._optimization_complete
         acqf = py"create_acqf"(
-            bo.model,
-            bo.acquisition_type,
-            bo.beta
+            bo._gpmodel,
+            string(bo.acqmethod),
+            bo.qUCB_beta
         )
 
         xbounds = copy(bo.bounds)
@@ -115,70 +180,87 @@ function ask!(bo::BoTorchOptimizer)
             acqf,
             py"totorch"(Matrix(xbounds')),
             q,
-            num_restarts = bo.num_restarts,
-            raw_samples = bo.raw_samples
+            num_restarts = bo.acq_nrestarts,
+            raw_samples = bo.acq_nsamples
         )
-        bo.optim_iterations += 1
-        if bo.optim_iterations >= bo.optimization_iterations
-            bo.optimization_complete = true
+        bo._optim_iterations_done += 1
+        if bo._optim_iterations_done >= bo.nopt
+            bo._optimization_complete = true
         end
-        return toscale!(Matrix(candidates'), bo.bounds)
+        return _toscale!(Matrix(candidates'), bo)
     end
     return nothing
 end
 
+"""
+    tell!(optimization, candidates, valus)
 
-function tell!(bo::BoTorchOptimizer, candidates, values)
-    pts = to01!(copy(candidates), bo.bounds)
+Provide newly evaluated candidate points to the optimizatio, update the initialization resp. training set.    
+"""
+function tell!(bo::BoTorchOptimization, candidates, values)
+    pts = _to01!(copy(candidates), bo)
     pycandidates = py"totorch"(pts')
     pyvalues = py"totorch"(values)
 
-    if isnothing(bo.X_obs)
-        bo.X_obs = pycandidates
-        bo.Y_obs = pyvalues
+    if isnothing(bo._X_obs)
+        bo._X_obs = pycandidates
+        bo._Y_obs = pyvalues
     else
-        bo.X_obs = py"torch.cat"([bo.X_obs, pycandidates])
-        bo.Y_obs = py"torch.cat"([bo.Y_obs, pyvalues])
+        bo._X_obs = py"torch.cat"([bo._X_obs, pycandidates])
+        bo._Y_obs = py"torch.cat"([bo._Y_obs, pyvalues])
     end
 
-    if bo.initialization_complete
-        bo.model = py"fit_gp_model"(bo.X_obs, bo.Y_obs)
+    bo._evaluations_used += length(values)
+
+    if bo._initialization_complete
+        bo._gpmodel = py"fit_gp_model"(bo._X_obs, bo._Y_obs)
     end
-    if bo.verbose  &&  bo.initialization_complete
-        if bo.initialization_complete && bo.optim_iterations == 0
-            println("Initialization complete")
-            printstats(bo)
-        end
-        if bo.optimization_complete
-            println("Optimization complete")
-            printstats(bo)
-        end
+    if bo.verbose
+        printstats(bo)
     end
     return nothing
 end
 
+
+"""
+    printstats(optimization)
+
+Evaluate and print statistics of optimization.
+"""
 function printstats(bo)
-    p, v = bestpoint(bo)
-    p = round.(p, sigdigits = 5)
-    v = round(v, sigdigits = 5)
-    println("Best: $(v) at $(p)")
+    pbest, valbest = bestpoint(bo)
+    pbest = round.(pbest, sigdigits = 5)
+    valbest = round(valbest, sigdigits = 5)
 
-    if bo.optimization_complete
-        mean, var = evalpost(bo, p)
-        var = round(var, sigdigits = 5)
-        mean = round(mean, sigdigits = 5)
-        println("      postmean=$(mean) var=$(var)")
+    status = "???"
+    if initializing(bo)
+        status = "Initializing"
+    elseif bo._initialization_complete && bo._optim_iterations_done == 0
+        status = "Initialized"
+    elseif optimizing(bo)
+        status = "Optimizing"
+    elseif finished(bo)
+        status = "Finished"
+    end
 
-        meancoord, stddev = samplemaxpost(bo)
-        mean, var = evalpost(bo, meancoord)
-        var = round(var, sigdigits = 5)
-        mean = round(mean, sigdigits = 5)
+    println("$(status): best at $(pbest), value=$(valbest) ")
+
+    if bo._optimization_complete
+        meanbest, varbest = evalpost(bo, pbest)
+        varbest = round(varbest, sigdigits = 5)
+        meanbest = round(meanbest, sigdigits = 5)
+
+        pmax, stddev = samplemaxpost(bo)
         stddev = round.(stddev, sigdigits = 5)
-        meancoord = round.(meancoord, sigdigits = 5)
+        pmax = round.(pmax, sigdigits = 5)
 
+        meanmax, varmax = evalpost(bo, pmax)
+        varmax = round(varmax, sigdigits = 5)
+        meanmax = round(meanmax, sigdigits = 5)
 
-        println("Postmax: postmean=$(mean) at $(meancoord)")
-        println("         stddev=$(stddev), var=$(var)")
+        println("Posterior: max at $(pmax)  stddev=$(stddev)")
+        println("  mean(best)=$(meanbest) variance=$(varbest)")
+        println("  mean(max)=$(meanmax) variance=$(varmax)")
     end
     return nothing
 end
@@ -189,8 +271,8 @@ end
 Return the best point and function value from the observation set.
 """
 function bestpoint(bo)
-    p, v = py"bestpoint"(bo.model, bo.X_obs, bo.Y_obs)
-    return toscale!(copy(p), bo.bounds), v
+    p, v = py"bestpoint"(bo._gpmodel, bo._X_obs, bo._Y_obs)
+    return _toscale!(copy(p), bo), v
 end
 
 """
@@ -200,8 +282,8 @@ Evaluate posterior at given point.
 Returns posterior mean and variance.
 """
 function evalpost(bo, p)
-    @assert bo.optimization_complete
-    mean, var = py"evalpost"(bo.model, py"totorch"(to01!(copy(p), bo.bounds)))
+    @assert bo._optimization_complete
+    mean, var = py"evalpost"(bo._gpmodel, py"totorch"(_to01!(copy(p), bo)))
     return mean, var
 end
 
@@ -211,30 +293,38 @@ end
 Sample the posterior maximum using 
 [MaxPosteriorSampling](https://botorch.readthedocs.io/en/stable/generation.html#botorch.generation.sampling.MaxPosteriorSampling).
 
-Returns the estimated maximum point and the estimated standard deviation.
+Returns the estimated maximum point and the estimated standard deviation of its coordinates.
+Use [`evalpost`](@Ref) to obtain the function value in that point.
 """
 function samplemaxpost(bo; nsamples = 100)
-    @assert bo.optimization_complete
-    @time maxcoord, stddev = py"samplemaxpost"(bo.model, nsamples)
-    return toscale!(maxcoord, bo.bounds), toscale!(stddev, bo.bounds) - bo.bounds[:, 1]
+    @assert bo._optimization_complete
+    maxcoord, stddev = py"samplemaxpost"(bo._gpmodel, nsamples)
+    return _toscale!(maxcoord, bo), _toscale!(stddev, bo) - bo.bounds[:, 1]
 end
 
+"""
+    optimize!(optimization, func)
 
+Maximize black box function. Use multithreading if `Threads.nthreads()>1`.
+"""
 function optimize!(bo, func)
     while !finished(bo)
         pts = ask!(bo)
-        values = zeros(bo.batch_size)
-        for i in 1:bo.batch_size
-            values[i] = func(pts[:, i])
+        values = zeros(bo.nbatch)
+        if Threads.nthreads() > 1
+            Threads.@threads for i in 1:size(pts, 2)
+                values[i] = func(pts[:, i])
+            end
+        else
+            for i in 1:size(pts, 2)
+                values[i] = func(pts[:, i])
+            end
         end
         tell!(bo, pts, values)
     end
-    meancoord, stddev = samplemaxpost(bo)
-    meanvalue, var = evalpost(bo, meancoord)
-    println("meancoord: $(meancoord), $(meanvalue), v=$(func(meancoord)), $(var)")
-    return bestpoint(bo)
+    return nothing
 end
 
-export BoTorchOptimizer, initializing, optimizing, finished, ask!, tell!, optimize!
+export BoTorchOptimization, initializing, optimizing, finished, ask!, tell!, optimize!
 
 end # module

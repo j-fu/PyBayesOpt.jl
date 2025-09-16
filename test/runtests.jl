@@ -1,5 +1,5 @@
 using BoTorchOpt
-using BoTorchOpt: to01!, toscale!
+using BoTorchOpt: _to01!, _toscale!
 using Test
 
 function testscaling(dim, npoints)
@@ -8,22 +8,22 @@ function testscaling(dim, npoints)
     bounds[:, 1] .= -10 * rand(dim)
     bounds[:, 2] .= 10 * rand(dim)
 
-    return @test to01!(copy(toscale!(copy(pts), bounds)), bounds) ≈ pts
+    return @test _to01!(copy(_toscale!(copy(pts), bounds)), bounds) ≈ pts
 end
 
 
 function black_box_function(x)
-    return -x[1]^2 - (x[2] - 1)^2 + 1 - 1.0e2 * x[3]^2
+    return -x[1]^2 - (x[2] - 1)^2 + 1
 end
 
 
 function test1(; q = 1)
 
-    bo = BoTorchOptimizer(;
-        bounds = [-10 -10 -10; 10 10 10;]',
+    bo = BoTorchOptimization(;
+        bounds = [-10 -10; 10 10;]',
         seed = rand(10:1000),
-        batch_size = q,
-        acquisition_type = "qUCB"
+        nbatch = q,
+        acqmethod = :qUCB
     )
 
     return optimize!(bo, black_box_function)

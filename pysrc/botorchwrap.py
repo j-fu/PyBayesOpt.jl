@@ -54,18 +54,18 @@ def fit_gp_model(X: torch.Tensor, Y: torch.Tensor) -> SingleTaskGP:
 
 
 def create_acqf(model, acq_type, beta):
-    if acq_type == "qEI":
+    if acq_type == "qEI" or acq_type == "qExpectedImprovement":
         best_f = model.train_targets.max()
         return qExpectedImprovement(model, best_f=best_f)
 
-    elif acq_type == "qLogEI":
+    elif acq_type == "qLogEI" or acq_type == "qLogExpectedImprovement":
         best_f = model.train_targets.max()
         return qLogExpectedImprovement(model, best_f=best_f)
   
-    elif acq_type == "qUCB":
+    elif acq_type == "qUCB" or acq_type == "qUpperConfidenceBound":
         return qUpperConfidenceBound(model, beta=beta)
     
-    elif acq_type == "qPI":
+    elif acq_type == "qPI" or acq_type == "qProbabilityOfImprovement":
         best_f = model.train_targets.max()
         return qProbabilityOfImprovement(model, best_f=best_f)
     else:
