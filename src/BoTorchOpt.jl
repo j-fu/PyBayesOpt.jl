@@ -12,8 +12,9 @@ include("optimizationstruct.jl")
 include("internals.jl")
 include("postprocess.jl")
 include("optimizationapi.jl")
-
-
 export BoTorchOptimization, initializing, optimizing, finished, ask!, tell!, optimize!
+export bestpoint, evalpost, samplemaxpost
+include("benchmarks.jl")
+
 
 end # module

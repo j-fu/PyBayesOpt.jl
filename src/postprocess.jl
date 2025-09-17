@@ -53,7 +53,7 @@ end
 
 """
     evalpost(optimizer, point)
-
+        b
 Evaluate posterior at given point.
 Returns posterior mean and variance.
 """
@@ -72,7 +72,7 @@ Sample the posterior maximum using
 Returns the estimated maximum point and the estimated standard deviation of its coordinates.
 Use [`evalpost`](@Ref) to obtain the function value in that point.
 """
-function samplemaxpost(bo; nsamples = 100)
+function samplemaxpost(bo; nsamples = 1000)
     @assert bo._optimization_complete
     maxcoord, stddev = py"samplemaxpost"(bo._gpmodel, nsamples)
     return _toscale!(maxcoord, bo), _toscale!(stddev, bo) - bo.bounds[:, 1]

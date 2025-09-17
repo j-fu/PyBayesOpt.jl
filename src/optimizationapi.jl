@@ -71,7 +71,9 @@ function ask!(bo::BoTorchOptimization)
         if bo._optim_iterations_done >= bo.nopt
             bo._optimization_complete = true
         end
-        return _toscale!(Matrix(candidates'), bo)
+
+        pts = _toscale!(Matrix(candidates'), bo)
+        return pts
     end
     return nothing
 end

@@ -12,21 +12,30 @@ function testscaling(dim, npoints)
 end
 
 
-function black_box_function(x)
-    return -x[1]^2 - (x[2] - 1)^2 + 1
+function runbenchmarks(; q = 4, nopt = 10)
+    funcs = [
+        #BoTorchOpt.SimpleFunction(),
+        BoTorchOpt.BraninFunction(),
+        #BoTorchOpt.AckleyFunction(),
+        #BoTorchOpt.RosenbrockFunction(dim = 4),
+    ]
+
+    for func in funcs
+        bo = BoTorchOptimization(;
+            bounds = func.bounds,
+            seed = rand(10:1000),
+            nbatch = q,
+            nopt,
+            acq_nsamples = 1024,
+            acqmethod = :qLogEI
+        )
+        optimize!(bo, func)
+        pt, val = bestpoint(bo)
+        defect = abs(val - func.optimal_value)
+        println("$(typeof(func)): defect=$(defect)")
+    end
+    return nothing
 end
 
 
-function test1(; q = 1)
-
-    bo = BoTorchOptimization(;
-        bounds = [-10 -10; 10 10;]',
-        seed = rand(10:1000),
-        nbatch = q,
-        acqmethod = :qUCB
-    )
-
-    return optimize!(bo, black_box_function)
-end
-
-test1(q = 3)
+runbenchmarks(q = 4)
