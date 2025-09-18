@@ -1,6 +1,7 @@
-using BoTorchOpt
-using BoTorchOpt: _to01!, _toscale!
+using PyBayesOpt
+using PyBayesOpt: _to01!, _toscale!
 using Test
+
 
 function testscaling(dim, npoints)
     pts = rand(dim, npoints)
@@ -14,14 +15,14 @@ end
 
 function runbenchmarks(; q = 4, nopt = 10)
     funcs = [
-        #BoTorchOpt.SimpleFunction(),
-        #BoTorchOpt.BraninFunction(),
-        BoTorchOpt.AckleyFunction(),
-        #BoTorchOpt.RosenbrockFunction(dim = 4),
+        #PyBayesOpt.SimpleFunction(),
+        #PyBayesOpt.BraninFunction(),
+        PyBayesOpt.AckleyFunction(),
+        #PyBayesOpt.RosenbrockFunction(dim = 4),
     ]
 
     for func in funcs
-        bo = BoTorchOptimization(;
+        bo = PyBayesOptimization(;
             bounds = func.bounds,
             seed = rand(10:1000),
             nbatch = q,

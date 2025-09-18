@@ -1,7 +1,7 @@
 """
-Placeholder for a short summary about BoTorchOpt.
+Placeholder for a short summary about PyBayesOpt.
 """
-module BoTorchOpt
+module PyBayesOpt
 using PyCall
 using Printf
 using OrderedCollections

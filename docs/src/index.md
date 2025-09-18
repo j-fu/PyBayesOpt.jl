@@ -1,7 +1,2 @@
-# BoTorchOpt
+# PyBayesOpt
 
-*Documentation goes here.*
-
-```@docs
-BoTorchOpt.BoTorchOpt
-```
