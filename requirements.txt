@@ -1,0 +1,6 @@
+bayesian-optimization=3.1.0  
+botorch==0.15.1
+gpytorch==1.14
+numpy==2.3.3
+scipy==1.16.2
+torch==2.7.1
