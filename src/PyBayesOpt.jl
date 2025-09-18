@@ -4,7 +4,6 @@ Placeholder for a short summary about PyBayesOpt.
 module PyBayesOpt
 using PyCall
 using Printf
-using OrderedCollections
 
 function __init__()
     @pyinclude(joinpath(@__DIR__, "..", "pysrc", "botorchwrap.py"))
