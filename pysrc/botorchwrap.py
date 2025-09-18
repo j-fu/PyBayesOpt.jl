@@ -5,7 +5,7 @@ from scipy.stats import qmc
 from botorch.models import SingleTaskGP
 from botorch.fit import fit_gpytorch_mll
 from gpytorch.mlls import ExactMarginalLogLikelihood
-from botorch.acquisition import qExpectedImprovement, qLogExpectedImprovement, qUpperConfidenceBound, qProbabilityOfImprovement
+from botorch.acquisition import qExpectedImprovement, qLogExpectedImprovement, qLogNoisyExpectedImprovement, qNoisyExpectedImprovement, qUpperConfidenceBound, qProbabilityOfImprovement
 from botorch.acquisition import PosteriorMean
 from botorch.optim import optimize_acqf
 from botorch.posteriors import GPyTorchPosterior
@@ -57,6 +57,13 @@ def create_acqf(model, acq_type, beta):
     if acq_type == "qEI" or acq_type == "qExpectedImprovement":
         best_f = model.train_targets.max()
         return qExpectedImprovement(model, best_f=best_f)
+
+    elif acq_type == "qNEI" or acq_type == "qNoisyExpectedImprovement":
+        return qLogNoisyExpectedImprovement(model,model.train_inputs[0], prune_baseline=True)
+
+
+    elif acq_type == "qLogNEI" or acq_type == "qLogNoisyExpectedImprovement":
+        return qLogNoisyExpectedImprovement(model,model.train_inputs[0], prune_baseline=True)
 
     elif acq_type == "qLogEI" or acq_type == "qLogExpectedImprovement":
         best_f = model.train_targets.max()

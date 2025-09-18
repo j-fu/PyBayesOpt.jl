@@ -16,7 +16,9 @@ For repeated optimizations create new instances.
 
    Valid metods:
     - `:qEI`, `:qExpectedImprovement`
+    - `:qNEI`, `:qNoisyExpectedImprovement`
     - `:qLogEI`, `:qLogExpectedImprovement`
+    - `:qLogNEI`, `:qLogNoisyExpectedImprovement`
     - `:qUCB`, `:qUpperConfidenceBound`
     - `:qPI`, `:qProbabilityOfImprovement`
 - `seed::Int = 1234`: random seed

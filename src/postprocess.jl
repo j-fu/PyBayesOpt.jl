@@ -46,7 +46,7 @@ end
 
 Return the best point and function value from the observation set.
 """
-function bestpoint(bo)
+function bestpoint(bo::BoTorchOptimization)
     p, v = py"bestpoint"(bo._gpmodel, bo._X_obs, bo._Y_obs)
     return _toscale!(copy(p), bo), v
 end

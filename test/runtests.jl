@@ -15,8 +15,8 @@ end
 function runbenchmarks(; q = 4, nopt = 10)
     funcs = [
         #BoTorchOpt.SimpleFunction(),
-        BoTorchOpt.BraninFunction(),
-        #BoTorchOpt.AckleyFunction(),
+        #BoTorchOpt.BraninFunction(),
+        BoTorchOpt.AckleyFunction(),
         #BoTorchOpt.RosenbrockFunction(dim = 4),
     ]
 
@@ -27,7 +27,7 @@ function runbenchmarks(; q = 4, nopt = 10)
             nbatch = q,
             nopt,
             acq_nsamples = 1024,
-            acqmethod = :qLogEI
+            acqmethod = :qLogNEI
         )
         optimize!(bo, func)
         pt, val = bestpoint(bo)
