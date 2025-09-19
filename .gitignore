@@ -1,8 +1,5 @@
 *.jl.cov
 *.jl.*.cov
 *.jl.mem
-/Manifest.toml
-/deps/deps.jl
+Manifest*.toml
 /docs/build
-/docs/Manifest.toml
-/test/coverage/Manifest.toml
