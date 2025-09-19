@@ -1,6 +1,5 @@
 """
-    ExampleJuggler
-
+    PyBayesOpt
 $(read(joinpath(@__DIR__, "..", "README.md"), String))
 """
 module PyBayesOpt
@@ -15,15 +14,15 @@ function __init__()
 end
 
 include("botorchqbatch.jl")
-export BoTorchQBatch
-export optimize
-export initializing, optimizing, finished, ask!, tell!, optimize!
-export bestpoint, evalpost, samplemaxpost
+export BoTorchQBatch, BoTorchQBatchState
+export initializing, optimizing, finished, ask!, tell!, bestpoint, evalposterior, sampleposteriormin
 
 
 include("bayesopt.jl")
-export BayesianOptimization
+export BayesianOptimization, BayesianOptimizationResult
+
 include("benchmarks.jl")
+export AbstractBenchmarkFunction, SimpleFunction, BraninFunction, AckleyFunction, RosenbrockFunction
 
 
 end # module

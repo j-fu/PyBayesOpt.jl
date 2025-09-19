@@ -40,3 +40,15 @@ end
 @testset "Benchmarks" begin
     runbenchmarks(q = 4)
 end
+
+@testset "Examples" begin
+    examples = [
+        joinpath(@__DIR__, "..", "examples", "quick_start.jl"),
+        joinpath(@__DIR__, "..", "examples", "optim_interface_example.jl")
+    ]
+    for ex in examples
+        @info "Running example" ex
+        include(ex)
+        @test true  # Reaching here means the example ran without uncaught errors
+    end
+end

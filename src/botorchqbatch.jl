@@ -12,13 +12,14 @@ optimization
 - `nopt::Int = 10`: number of optimization iterations resulting in `nbatch*nopt` evaluations
 - `acqmethod::Symbol = :qLogEI`: acquisition method.  
 
-   Valid metods:
+   Valid metods (see [BoTorch docmentation](https://botorch.readthedocs.io/en/stable/acquisition.html)):
     - `:qEI`, `:qExpectedImprovement`
     - `:qNEI`, `:qNoisyExpectedImprovement`
     - `:qLogEI`, `:qLogExpectedImprovement`
     - `:qLogNEI`, `:qLogNoisyExpetedImprovement`
     - `:qUCB`, `:qUpperConfidenceBound`
     - `:qPI`, `:qProbabilityOfImprovement`
+
 - `seed::Int = 1234`: random seed
 - `verbose::Bool = true`: verbosity
 - `acq_nrestarts::Int = 20`: `num_restarts` parameter in `optimize_acqf`
@@ -158,7 +159,7 @@ function optimizing(state::BoTorchQBatchState)
 end
 
 """
-   optimizing(qbatch_state)
+   finished(qbatch_state)
 
 Tell if optimization is finished
 """
@@ -254,9 +255,26 @@ function tell!(state::BoTorchQBatchState, candidates, values)
 end
 
 """
-    optimize(func, params::BoTorchQBatch)
+    Optim.optimize(func, params::BoTorchQBatch)
 
-Maximize black box function `func` using [`BoTorchQBatch`](@ref) method. Use multithreading if `Threads.nthreads()>1`.
+Minimize black-box function `func` using the [`BoTorchQBatch`](@ref) Bayesian optimization method.
+
+This provides an `Optim.jl`-compatible interface so you can call `optimize(func, method)` or
+`Optim.optimize(func, method)` directly. The optimization proceeds in two phases:
+
+1. Initialization: `params.ninit` batches of random (Sobol) points are evaluated.
+2. Optimization: `params.nopt` iterations of model-based batch acquisition optimization.
+
+Multi-threading: If `Threads.nthreads() > 1`, function evaluations within a batch are
+threaded.
+
+Arguments
+- `func::Function`: Objective to minimize (should accept a vector of reals and return a scalar).
+- `params::BoTorchQBatch`: Configuration object.
+
+Returns
+- `BoTorchQBatchState`: Final state which behaves like an `Optim.MultivariateOptimizationResults` object
+  (supports `minimum`, `minimizer`, `f_calls`, etc.).
 """
 function Optim.optimize(func, params::BoTorchQBatch)
     state = BoTorchQBatchState(; params)
@@ -279,11 +297,15 @@ end
 
 
 """
-    summary(qbatch_state)
+    Optim.summary(state::BoTorchQBatchState)
 
-Evaluate and print statistics of optimization.
+Print a concise human-readable summary of a [`BoTorchQBatchState`](@ref) including phase,
+current best point, best value, and (once optimization is complete) posterior statistics
+at the incumbent.
+
+Intended mainly for verbose / debugging output; called automatically when `params.verbose=true`.
 """
-function summary(state::BoTorchQBatchState)
+function Optim.summary(state::BoTorchQBatchState)
     pbest, valbest = bestpoint(state)
     pbest = round.(pbest, sigdigits = 5)
     valbest = round(valbest, sigdigits = 5)
@@ -302,21 +324,21 @@ function summary(state::BoTorchQBatchState)
     println("\n$(status): best at $(pbest), value=$(valbest) ")
 
     if state.optimization_complete
-        meanbest, varbest = evalpost(state, pbest)
+        meanbest, varbest = evalposterior(state, pbest)
         varbest = round(varbest, sigdigits = 5)
         meanbest = round(meanbest, sigdigits = 5)
 
-        pmax, stddev = samplemaxpost(state)
+        pmin, stddev = sampleposteriormin(state)
         stddev = round.(stddev, sigdigits = 5)
-        pmax = round.(pmax, sigdigits = 5)
+        pmin = round.(pmin, sigdigits = 5)
 
-        meanmax, varmax = evalpost(state, pmax)
-        varmax = round(varmax, sigdigits = 5)
-        meanmax = round(meanmax, sigdigits = 5)
+        meanmin, varmin = evalposterior(state, pmin)
+        varmin = round(varmin, sigdigits = 5)
+        meanmin = round(meanmin, sigdigits = 5)
 
-        println("Posterior: max at $(pmax)  stddev=$(stddev)")
+        println("Posterior: min at $(pmin)  stddev=$(stddev)")
         println("  mean(best)=$(meanbest) variance=$(varbest)")
-        println("  mean(max)=$(meanmax) variance=$(varmax)")
+        println("  mean(min)=$(meanmin) variance=$(varmin)")
     end
     return nothing
 end
@@ -337,27 +359,27 @@ function bestpoint(state::BoTorchQBatchState)
 end
 
 """
-    evalpost(qbatch_state, point)
+    evalposterior(qbatch_state, point)
         
 Evaluate posterior at given point.
 Returns posterior mean and variance.
 """
-function evalpost(state::BoTorchQBatchState, p)
+function evalposterior(state::BoTorchQBatchState, p)
     @assert state.optimization_complete
     mean, var = py"evalpost"(state.gpmodel, py"totorch"(_to01!(copy(p), state)))
-    return mean, -var
+    return -mean, var
 end
 
 """
-    samplemaxpost(qbatch_state; nsamples)
+    sampleposteriormin(qbatch_state; nsamples)
 
-Sample the posterior maximum using 
+Sample the posterior minimum using 
 [MaxPosteriorSampling](https://botorch.readthedocs.io/en/stable/generation.html#botorch.generation.sampling.MaxPosteriorSampling).
 
-Returns the estimated maximum point and the estimated standard deviation of its coordinates.
-Use [`evalpost`](@Ref) to obtain the function value in that point.
+Returns the estimated minimum point and the estimated standard deviation of its coordinates.
+Use [`evalposterior`](@ref) to obtain the function value in that point.
 """
-function samplemaxpost(state::BoTorchQBatchState; nsamples = 1000)
+function sampleposteriormin(state::BoTorchQBatchState; nsamples = 1000)
     @assert state.optimization_complete
     maxcoord, stddev = py"samplemaxpost"(state.gpmodel, nsamples)
     return _toscale!(maxcoord, state), _toscale!(stddev, state) - state.params.bounds[:, 1]

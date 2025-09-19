@@ -11,8 +11,6 @@ from botorch.optim import optimize_acqf
 from botorch.posteriors import GPyTorchPosterior
 from botorch.generation import MaxPosteriorSampling
 
-
-
 def generate_initial_candidates(dim, n, seed):
     """
     Generate n sample points in [0,1]^dim
