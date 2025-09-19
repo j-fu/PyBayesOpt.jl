@@ -1,3 +1,7 @@
+[![ci](https://github.com/j-fu/PyBayesOpt.jl/actions/workflows/ci.yml/badge.svg)](https://github.com/j-fu/PyBayesOpt.jl/actions/workflows/CI.yml)
+[![](https://img.shields.io/badge/docs-stable-blue.svg)](https://j-fu.github.io/PyBayesOpt.jl/stable)
+[![](https://img.shields.io/badge/docs-dev-blue.svg)](https://j-fu.github.io/PyBayesOpt.jl/dev)
+
 # PyBayesOpt.jl
 
 Julia wrapper to some Bayesian optimization tools available in Python:
