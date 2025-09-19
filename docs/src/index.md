@@ -186,6 +186,8 @@ PyBayesOpt
 PyBayesOpt.BoTorchQBatch
 PyBayesOpt.BoTorchQBatchState
 PyBayesOpt.BayesianOptimization
+Optim.optimize
+Optim.summary
 PyBayesOpt.initializing
 PyBayesOpt.optimizing
 PyBayesOpt.finished
@@ -194,6 +196,8 @@ PyBayesOpt.tell!
 PyBayesOpt.bestpoint
 PyBayesOpt.evalposterior
 PyBayesOpt.sampleposteriormin
+PyBayesOpt.BayesianOptimizationResult
+PyBayesOpt.AbstractBenchmarkFunction
 PyBayesOpt.SimpleFunction
 PyBayesOpt.BraninFunction
 PyBayesOpt.AckleyFunction
