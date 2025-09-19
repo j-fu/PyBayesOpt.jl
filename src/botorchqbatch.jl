@@ -16,7 +16,7 @@ optimization
     - `:qEI`, `:qExpectedImprovement`
     - `:qNEI`, `:qNoisyExpectedImprovement`
     - `:qLogEI`, `:qLogExpectedImprovement`
-    - `:qLogNEI`, `:qLogNoisyExpectedImprovement`
+    - `:qLogNEI`, `:qLogNoisyExpetedImprovement`
     - `:qUCB`, `:qUpperConfidenceBound`
     - `:qPI`, `:qProbabilityOfImprovement`
 - `seed::Int = 1234`: random seed
@@ -24,7 +24,6 @@ optimization
 - `acq_nrestarts::Int = 20`: `num_restarts` parameter in `optimize_acqf`
 - `acq_nsamples::Int = 512`: `raw_samples` parameter in  `optimize_acqf`
 - `qUCB_beta::Float64 = 2.0`: beta parameter for qUCB_beta acquisition method
-
 """
 Base.@kwdef mutable struct BoTorchQBatch
     bounds::Matrix{Float64} = [-1 1]'
@@ -39,8 +38,26 @@ Base.@kwdef mutable struct BoTorchQBatch
     qUCB_beta::Float64 = 2.0
 end
 
+
 """
     struct BoTorchQBatchState
+
+State for  [`BoTorchQBatch`](@ref), also used as result struct.
+
+An instance of this state can be used either as the method paramer for the `optimize` function,
+or in  user implemented loop as seen below:
+
+
+    state = BoTorchQBatchState(; params)
+    while !finished(state)
+        pts = ask!(state)
+        values = zeros(state.params.nbatch)
+        Threads.@threads for i in 1:size(pts, 2)
+              values[i] = func(pts[:, i])
+        end
+        tell!(state, pts, values)
+    end
+
 
 ## Fields
 - `X_ini::Union{Nothing, Matrix{Float64}} = nothing`: initialization points
@@ -69,6 +86,13 @@ Base.@kwdef mutable struct BoTorchQBatchState <: Optim.OptimizationResults
     minimum::Float64 = 0
 end
 
+"""
+    _toscale!(points::Matrix, state::BoTorchQBatchState)
+    _toscale!(point::Vector, state::BoTorchQBatchState)
+    
+Scale point(s) from `[0,1]^d` to problem bounds.
+"""
+function _toscale! end
 
 function _toscale!(pts::AbstractMatrix, state::BoTorchQBatchState)
     (; bounds) = state.params
@@ -88,6 +112,14 @@ function _toscale!(pt::AbstractVector, state::BoTorchQBatchState)
     return pt
 end
 
+"""
+    _to01!(points::Matrix, state::BoTorchQBatchState)
+    _to01!(point::Vector, state::BoTorchQBatchState)
+    
+Scale point(s) from problem bounds to  `[0,1]^d`.
+"""
+function _to01! end
+
 function _to01!(pts::AbstractMatrix, state::BoTorchQBatchState)
     (; bounds) = state.params
     for i in 1:size(pts, 2)
@@ -104,14 +136,6 @@ function _to01!(pt::AbstractVector, state::BoTorchQBatchState)
         pt[j] = (pt[j] - bounds[j, 1]) / (bounds[j, 2] - bounds[j, 1])
     end
     return pt
-end
-
-
-function _generate_initial_candidates!(state::BoTorchQBatchState)
-    (; nbatch, bounds, ninit, seed) = state.params
-    pts = py"generate_initial_candidates"(size(bounds, 1), nbatch * ninit, seed)'
-    state.X_ini = _toscale!(pts, state)
-    return nothing
 end
 
 
@@ -149,12 +173,14 @@ Ask for a new batch of points to be avaluated. Returns `dim x batchsize` matrix.
 At once may generate intial candidates or optimize the acquisition.
 """
 function ask!(state::BoTorchQBatchState)
+    (; nbatch, bounds, ninit, seed) = state.params
 
     q = state.params.nbatch
     if state.init_iterations_done == 0 && isnothing(state.X_ini)
         @assert size(state.params.bounds, 2) == 2
         # !!! more consistency checks here
-        _generate_initial_candidates!(state)
+        pts = py"generate_initial_candidates"(size(bounds, 1), nbatch * ninit, seed)'
+        state.X_ini = _toscale!(pts, state)
     end
 
     if !state.initialization_complete
@@ -228,9 +254,9 @@ function tell!(state::BoTorchQBatchState, candidates, values)
 end
 
 """
-    optimize!(qbatch_state, func)
+    optimize(func, params::BoTorchQBatch)
 
-Maximize black box function. Use multithreading if `Threads.nthreads()>1`.
+Maximize black box function `func` using [`BoTorchQBatch`](@ref) method. Use multithreading if `Threads.nthreads()>1`.
 """
 function Optim.optimize(func, params::BoTorchQBatch)
     state = BoTorchQBatchState(; params)

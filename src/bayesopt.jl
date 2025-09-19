@@ -1,3 +1,15 @@
+"""
+    struct BayesianOptimization
+
+Optimizer wrapping  [BayesianOptimization](https://github.com/bayesian-optimization/BayesianOptimization).
+## Fields:
+- 'bounds::Matrix{Float64}'
+- 'ninit::Int = 10'
+- 'nopt::Int = 100'
+- 'verbose::Int = 0'
+- 'seed::Int = 1'
+
+"""
 Base.@kwdef struct BayesianOptimization
     bounds::Matrix{Float64} = zeros(2, 2)
     ninit::Int = 10
@@ -6,6 +18,11 @@ Base.@kwdef struct BayesianOptimization
     seed::Int = 1
 end
 
+"""
+    struct BayesianOptimizationResult
+
+Result struct for [`BayesianOptimization`](@ref)
+"""
 Base.@kwdef mutable struct BayesianOptimizationResult <: Optim.OptimizationResults
     params::BayesianOptimization
     f_calls::Int = 0
@@ -27,6 +44,11 @@ function bounds2pairs(bounds::Matrix)
 end
 
 
+"""
+    optimize(func, params::BayesianOptimization)
+
+Maximize black box function `func` using [`BayesianOptimization`](@ref) method
+"""
 function Optim.optimize(f, params::BayesianOptimization)
     xbounds = Dict(bounds2pairs(params.bounds))
     xf(; x...) = -f(dict2vec(Dict(x...)))
