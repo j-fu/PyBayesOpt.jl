@@ -6,6 +6,7 @@ using Optim  # ensure Optim methods available during doc build
 makedocs(
     modules = [PyBayesOpt],
     format = Documenter.HTML(; prettyurls = true),
+    clean = false,
     authors = "Jürgen Fuhrmann",
     sitename = "PyBayesOpt.jl",
     pages = Any["index.md", "internal.md"],

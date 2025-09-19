@@ -15,8 +15,4 @@ PyBayesOpt.vec2pairs
 PyBayesOpt.bounds2pairs
 PyBayesOpt.x00i
 PyBayesOpt.get
-PyBayesOpt.BayesianOptimizationResult
-PyBayesOpt.AbstractBenchmarkFunction
-Optim.optimize
-Optim.summary
 ```
