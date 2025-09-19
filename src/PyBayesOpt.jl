@@ -1,9 +1,12 @@
 """
-Placeholder for a short summary about PyBayesOpt.
+    ExampleJuggler
+
+$(read(joinpath(@__DIR__, "..", "README.md"), String))
 """
 module PyBayesOpt
 using PyCall
 using Printf
+using Optim
 
 function __init__()
     @pyinclude(joinpath(@__DIR__, "..", "pysrc", "botorchwrap.py"))
@@ -11,12 +14,12 @@ function __init__()
     return nothing
 end
 
-include("optimizationstruct.jl")
-include("internals.jl")
-include("postprocess.jl")
-include("optimizationapi.jl")
-export BoTorchOptimization, initializing, optimizing, finished, ask!, tell!, optimize!
+include("botorchqbatch.jl")
+export BoTorchQBatch
+export optimize
+export initializing, optimizing, finished, ask!, tell!, optimize!
 export bestpoint, evalpost, samplemaxpost
+
 
 include("bayesopt.jl")
 export BayesianOptimization

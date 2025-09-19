@@ -2,17 +2,17 @@ abstract type AbstractBenchmarkFunction end
 
 Base.@kwdef struct SimpleFunction <: AbstractBenchmarkFunction
     bounds = [[-10 10.0]; [-10 10]]
-    optimal_value = 1.0
+    optimal_value = -1.0
     optimal_point = [0.0, 1.0]
 end
 
 function (::SimpleFunction)(x)
-    return -x[1]^2 - (x[2] - 1)^2 + 1
+    return x[1]^2 + (x[2] - 1)^2 - 1
 end
 
 Base.@kwdef struct BraninFunction <: AbstractBenchmarkFunction
     bounds = [[-5.0 10.0]; [0.0 15.0]]
-    optimal_value = -0.397887
+    optimal_value = 0.397887
 end
 
 function (::BraninFunction)(x)
@@ -27,7 +27,7 @@ function (::BraninFunction)(x)
     term1 = a * (x2 - b * x1^2 + c * x1 - r)^2
     term2 = s * (1 - t) * cos(x1)
     y = term1 + term2 + s
-    return -y
+    return y
 end
 
 

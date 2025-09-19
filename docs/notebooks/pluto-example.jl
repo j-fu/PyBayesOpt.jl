@@ -26,7 +26,7 @@ end
 
 # ╔═╡ 3f2a5921-48fb-4278-97cf-254e98671643
 function f(x, p)
-    return 10*p[1] + p[2] * x + p[3] * x^3 + p[4] * x^4 + p[5]*x^5
+    return 50*p[1] + p[2] * x + p[3] * x^3 + p[4] * x^4 + p[5]*x^5
 end
 
 # ╔═╡ a139fee5-1fb2-4a0a-a356-d606ef65572f
@@ -67,9 +67,8 @@ md"""
 ## BoTorch
 """
 
-# ╔═╡ 46e85e36-f37b-4dbb-88f6-31c1b60eaea5
-begin
-    botopt = BoTorchOptimization(;
+# ╔═╡ dbd628df-f18d-4c2a-8519-17316e767273
+    result_qbatch=optimize(lsq, BoTorchQBatch(;
         bounds,
         seed = rand(10:1000),
         nbatch = 4,
@@ -77,25 +76,33 @@ begin
         nopt = 15,
         acq_nsamples = 1024,
         acqmethod = :qLogNEI
-    )
-    optimize!(botopt, p -> -lsq(p))
-    nbo = botopt._evaluations_used
-    pbotopt, vbotopt = bestpoint(botopt)
-end
+    ))
+
+
+# ╔═╡ 46e85e36-f37b-4dbb-88f6-31c1b60eaea5
+nbo = Optim.f_calls(result_qbatch)
+
+# ╔═╡ 19594441-b186-46ea-bf39-a1b386f31b2a
+pbotopt=Optim.minimizer(result_qbatch)
 
 # ╔═╡ 541432aa-0e02-4522-983c-deb65df2ced8
 md"""
 # BayesianOptimization
 """
 
-# ╔═╡ 8c9ea9b2-9a74-4ae1-be4f-f4196abe70f4
-begin
-	bayopt=BayesianOptimization(p->-lsq(p);
-								bounds, ninit=40, nopt=60, verbose=1 )
-	PyBayesOpt.maximize!(bayopt)
-	nbay=PyBayesOpt.iterations(bayopt)
-	pbayopt, vbayopt = bestpoint(bayopt)	
-end
+# ╔═╡ 06b7950c-9112-4a6f-b4ca-7b0a14006914
+result_bayesopt=optimize(lsq, BayesianOptimization(;
+        bounds,
+        seed = rand(10:1000),
+        ninit = 40,
+        nopt = 60,
+    ))
+
+# ╔═╡ fc148848-9b5b-4651-a4ec-a27fe790046c
+nbay= Optim.f_calls(result_bayesopt)
+
+# ╔═╡ d6ca911e-8ecc-47a4-910c-468fd5e7f3b6
+pbayopt=Optim.minimizer(result_bayesopt)
 
 # ╔═╡ a27444c5-710b-4203-896a-7f4033bf5da9
 md"""
@@ -222,9 +229,13 @@ restart_button() = html"""
 # ╠═3aa6e1ce-6e51-4bfe-ba97-50ae8893b6c8
 # ╟─c373f697-fc1e-43f2-a590-f84489398128
 # ╠═745ca731-f47d-4570-a87e-f6c37f68ebfe
+# ╠═dbd628df-f18d-4c2a-8519-17316e767273
 # ╠═46e85e36-f37b-4dbb-88f6-31c1b60eaea5
+# ╠═19594441-b186-46ea-bf39-a1b386f31b2a
 # ╟─541432aa-0e02-4522-983c-deb65df2ced8
-# ╠═8c9ea9b2-9a74-4ae1-be4f-f4196abe70f4
+# ╠═06b7950c-9112-4a6f-b4ca-7b0a14006914
+# ╠═fc148848-9b5b-4651-a4ec-a27fe790046c
+# ╠═d6ca911e-8ecc-47a4-910c-468fd5e7f3b6
 # ╟─a27444c5-710b-4203-896a-7f4033bf5da9
 # ╠═631e0d25-998b-42a4-ac04-a0908af1a24d
 # ╠═db099202-b424-49c5-9277-c5a43ab324be

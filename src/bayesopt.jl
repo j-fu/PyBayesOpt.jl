@@ -1,9 +1,17 @@
-struct BayesianOptimization
-    optimizer::PyObject
-    ninit::Int
-    nopt::Int
+Base.@kwdef struct BayesianOptimization
+    bounds::Matrix{Float64} = zeros(2, 2)
+    ninit::Int = 10
+    nopt::Int = 100
+    verbose::Int = 0
+    seed::Int = 1
 end
 
+Base.@kwdef mutable struct BayesianOptimizationResult <: Optim.OptimizationResults
+    params::BayesianOptimization
+    f_calls::Int = 0
+    minimizer::Vector{Float64} = zeros(0)
+    minimum::Float64 = 0
+end
 
 x00i(i) = @sprintf("x%03d", i)
 get(d::Dict{Any, T}, i) where {T} = d[x00i(i)]
@@ -19,38 +27,22 @@ function bounds2pairs(bounds::Matrix)
 end
 
 
-function BayesianOptimization(
-        f = x -> x;
-        bounds = zeros(2, 2),
-        verbose = 0,
-        random_state = 1,
-        ninit::Int = 10,
-        nopt::Int = 20
+function Optim.optimize(f, params::BayesianOptimization)
+    xbounds = Dict(bounds2pairs(params.bounds))
+    xf(; x...) = -f(dict2vec(Dict(x...)))
+    optimizer = py"BayesianOptimization"(;
+        f = xf,
+        pbounds = xbounds,
+        verbose = params.verbose,
+        random_state = params.seed
+    )
+    optimizer.maximize(; init_points = params.ninit, n_iter = params.nopt)
+
+    return BayesianOptimizationResult(;
+        params,
+        f_calls = length(optimizer.res),
+        minimizer = dict2vec(Dict(pairs(optimizer.max["params"]))),
+        minimum = -optimizer.max["target"]
     )
 
-    xbounds = Dict(bounds2pairs(bounds))
-    xf(; x...) = f(dict2vec(Dict(x...)))
-    return BayesianOptimization(
-        py"BayesianOptimization"(; f = xf, pbounds = xbounds, verbose, random_state),
-        ninit,
-        nopt
-    )
 end
-
-function maximize!(bo::BayesianOptimization)
-    bo.optimizer.maximize(; init_points = bo.ninit, n_iter = bo.nopt)
-    return bestpoint(bo)
-end
-
-function set_bounds!(bo::BayesianOptimization; new_bounds = (x = (0, 1)), lazy = true)
-    return bo.optimizer.set_bounds(new_bounds = new_bounds, lazy = lazy)
-end
-
-function bestpoint(bo::BayesianOptimization)
-    target = bo.optimizer.max["target"]
-    params = bo.optimizer.max["params"]
-    return dict2vec(Dict(pairs(params))), target
-end
-
-res(bo::BayesianOptimization) = bo.optimizer.res
-iterations(bo::BayesianOptimization) = length(bo.optimizer.res)

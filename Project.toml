@@ -4,10 +4,12 @@ version = "0.1.0"
 authors = ["Jürgen Fuhrmann <juergen-fuhrmann@web.de>"]
 
 [deps]
+Optim = "429524aa-4258-5aef-a3af-852621145aeb"
 Printf = "de0858da-6303-5e67-8744-51eddeeeb8d7"
 PyCall = "438e738f-606a-5dbb-bf0a-cddfbfd45ab0"
 
 [compat]
+Optim = "1.13.2"
 Printf = "1.11.0"
 PyCall = "1.96.4"
 julia = "1"
