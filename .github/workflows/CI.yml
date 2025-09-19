@@ -1,4 +1,4 @@
-name: CI
+<name: CI
 on:
   pull_request:
     branches:
@@ -25,7 +25,7 @@ jobs:
         arch:
           - x64
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: julia-actions/setup-julia@v2
         with:
           version: ${{ matrix.version }}
@@ -40,9 +40,9 @@ jobs:
             ${{ runner.os }}-test-${{ env.cache-name }}-
             ${{ runner.os }}-test-
             ${{ runner.os }}-
-      - name: Install python packages
-        run: pip install -r requirements.txt
       - uses: julia-actions/julia-buildpkg@v1
+      - name: Install python packages
+        run: pip install -u -r requirements.txt
       - uses: julia-actions/julia-runtest@v1
       - uses: julia-actions/julia-processcoverage@v1
       - uses: codecov/codecov-action@v5
