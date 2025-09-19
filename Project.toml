@@ -1,6 +1,6 @@
 name = "PyBayesOpt"
 uuid = "ec14edaa-b110-45d8-b073-5b582e9ce5cd"
-version = "0.1.0"
+version = "0.1.1"
 authors = ["Jürgen Fuhrmann <juergen-fuhrmann@web.de>"]
 
 [deps]

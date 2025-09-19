@@ -10,14 +10,7 @@ It uses a very partial implementation of the optimizer interface provided by [Op
 
 ## Installation
 
-```julia
-using Pkg
-Pkg.develop(path="/path/to/PyBayesOpt")  # Adjust path as needed
-using PyBayesOpt
-```
-
-## Prerequisites
-
+### Python prerequisites
 The package uses PyCall.jl to access the python code, and therefore requires a python installation which is working well with this package.
 See [requirements.txt](requirements.txt) for the python packages to be installed.
 
@@ -30,6 +23,28 @@ with the mkl library:
 
 ```bash
 export TORCH_USE_RTLD_GLOBAL=1
+```
+
+### Installation via PackageNursery registry
+The package can be installed with the Julia package manager in a standard way
+For the time being, it is registered in the julia package registry [https://github.com/j-fu/PackageNursery](https://github.com/j-fu/PackageNursery)
+To add the registry (needed only once), and to install the package, 
+from the Julia REPL, type `]` to enter the Pkg REPL mode and run:
+
+```
+pkg> registry add https://github.com/j-fu/PackageNursery
+```
+
+Please be aware that adding a registry to your Julia installation requires to
+trust the registry maintainer for handling things in a correct way. In particular,
+the registry should not register higher versions of packages which are already
+registered in the Julia General Registry. One can check this by visiting the above mentionend
+github repository URL and inspecting the contents.
+
+### Installation via  repository URL
+```julia
+using Pkg
+Pkg.add(url="https://github.com/j-fu/PyBayesOpt.jl")
 ```
 
 ## Quick Start
@@ -173,24 +188,8 @@ See the `examples/` directory for:
 - `quick_start.jl` - Basic usage examples  
 - `optim_interface_example.jl` - Comprehensive Optim.jl interface demo
 
-## Documentation
+## AI usage statement
 
-Build the documentation locally:
+Github copilot with Claude Sonnet 4 and GPT-5 was used to design an initial python version of the BoTorch
+based algorithm, and to brush up documentation and testing infrastructure.
 
-```julia
-using Pkg
-Pkg.activate("docs")  
-Pkg.instantiate()
-include("docs/make.jl")
-```
-
-## Testing
-
-```julia
-using Pkg
-Pkg.test()
-```
-
-## License
-
-See [LICENSE](LICENSE) file.

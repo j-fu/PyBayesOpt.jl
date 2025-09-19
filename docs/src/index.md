@@ -15,21 +15,6 @@ PyBayesOpt.jl provides Julia interfaces to popular Python Bayesian optimization 
 
 The package implements the [Optim.jl](https://github.com/JuliaNLSolvers/Optim.jl) interface for seamless integration with Julia's optimization ecosystem.
 
-## Installation
-
-```julia
-# Install from local directory (adjust path as needed)
-using Pkg
-Pkg.develop(path="/path/to/PyBayesOpt")
-using PyBayesOpt
-```
-
-Ensure required Python packages (e.g. torch, botorch, bayesian-optimization) are installed in the Python environment used by PyCall.
-
-On Linux, you may need to set the environment variable:
-```bash
-export TORCH_USE_RTLD_GLOBAL=1
-```
 
 ## Quick Start
 
